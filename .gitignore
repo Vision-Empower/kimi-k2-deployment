@@ -1,0 +1,35 @@
+# Model files (too large for git)
+kimi-k2-instruct/
+kimi-k2-gguf/
+models/
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+.Python
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.so
+
+# KTransformers
+ktransformers/
