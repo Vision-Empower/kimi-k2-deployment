@@ -1,0 +1,87 @@
+# KTransformers configuration for Kimi-K2 CPU+AMX inference
+# This config maps all operations to CPU with AMX acceleration
+
+gguf_path: "/tmp/kimi-ramdisk/Kimi-K2-Instruct"
+
+# CPU+AMX specific settings
+cpu_infer: true
+device: "cpu"
+dtype: "int8"  # INT8 quantization for AMX
+backend: "AMXInt8"
+
+# Model parallel disabled (single node)
+model_parallel_size: 1
+
+# Expert parallelism settings
+expert_parallel_size: 8  # Parallel expert execution
+expert_cache_size: 32    # Cache frequently used experts
+
+# Module rules for MoE layers
+module_rules:
+  # Attention layers - standard CPU ops
+  - match:
+      name: "^model\\.layers\\..*\\.self_attn$"
+    replace:
+      class: ktransformers.operators.attention.KTransformersAttention
+      kwargs:
+        prefill_device: "cpu"
+        prefill_op: "KAttentionCPU"
+        generate_device: "cpu" 
+        generate_op: "KAttentionCPU"
+        attn_implementation: "eager"
+        out_device: "cpu"
+
+  # MoE Expert layers - CPU with AMX
+  - match:
+      name: "^model\\.layers\\..*\\.mlp\\.experts$"
+    replace:
+      class: ktransformers.operators.experts.KTransformersExpertsV2     
+      kwargs:
+        prefill_device: "cpu"      
+        prefill_op: "KExpertsCPU"  
+        generate_device: "cpu"     
+        generate_op: "KExpertsCPU"
+        out_device: "cpu"
+        backend: "AMXInt8"         
+        num_local_experts: 128     
+        expert_cache_size: 32      
+        expert_parallel: true       
+        expert_parallel_size: 8     
+
+  # Gate layers - CPU routing
+  - match:
+      name: "^model\\.layers\\..*\\.mlp\\.gate$"
+    replace:
+      class: ktransformers.operators.gate.KTransformersGate
+      kwargs:
+        device: "cpu"
+        backend: "AMXInt8"
+
+  # Layer norm - optimized CPU
+  - match:
+      name: "^model\\.layers\\..*\\.(input_layernorm|post_attention_layernorm)$"
+    replace:
+      class: ktransformers.operators.layernorm.KTransformersLayerNorm
+      kwargs:
+        device: "cpu"
+        backend: "MKL"  # Intel MKL optimized
+
+# Memory settings
+cache_mode: "memory"  # Keep everything in RAM
+offload_mode: false   # No disk offloading
+
+# Performance tuning
+num_threads: 192      # Match CPU core count
+thread_affinity: true # Pin threads to cores
+numa_aware: true      # NUMA optimization
+
+# Batching configuration  
+batch_size: 1         # Start with single batch
+max_batch_size: 4     # Scale based on testing
+continuous_batching: false  # Module-based batching instead
+
+# Generation settings
+max_seq_length: 32768
+temperature: 0.7
+top_p: 0.9
+top_k: 20

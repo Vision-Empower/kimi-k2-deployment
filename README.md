@@ -2,6 +2,10 @@
 
 This repository documents the deployment process of Kimi-K2 (1T parameter MoE model) using KTransformers on a high-performance server.
 
+## 🆕 CPU+AMX Deployment Strategy
+
+We've developed a CPU-only inference approach using Intel AMX (Advanced Matrix Extensions) after discovering that CloudExe provides remote GPU access rather than local GPU. This makes traditional CPU-GPU hybrid inference impractical due to network latency. See [KIMI_K2_CPU_AMX_DEPLOYMENT.md](KIMI_K2_CPU_AMX_DEPLOYMENT.md) for details.
+
 ## 🚀 Quick Start
 
 ```bash
@@ -98,6 +102,28 @@ python -m ktransformers.server.main \
 
 **Solution**: Clean rebuild with correct flags
 
+## 🔧 CPU+AMX Deployment (NEW)
+
+For systems with Intel AMX support and large RAM capacity:
+
+```bash
+# Check AMX support
+lscpu | grep amx
+
+# Start CPU+AMX optimized server
+cd scripts
+./start_kimi_k2_server.sh
+
+# Test inference
+python test_kimi_k2_client.py
+```
+
+### CPU+AMX Configuration
+- Uses Intel AMX for INT8 acceleration
+- NUMA-aware expert distribution
+- Optimized for 192-core Intel Xeon systems
+- See `configs/kimi_k2_cpu_amx_config.yaml` for details
+
 ## 📊 Performance Metrics
 
 | Configuration | Memory Usage | GPU VRAM | Speed (tokens/s) |
@@ -105,6 +131,7 @@ python -m ktransformers.server.main \
 | Q4_K_M + H100 | ~600GB | 14GB | 10-14 |
 | Q4_K_M + CPU only | ~600GB | 0 | 8-10 |
 | Q2_K + H100 | ~300GB | 10GB | 12-16 |
+| INT8 + AMX (CPU) | ~812GB | 0 | 2-4 |
 
 ## 🤝 Contributing
 
